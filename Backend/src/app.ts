@@ -4,7 +4,8 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import compression from "compression";
 import morgan from "morgan";
-
+import authRoutes from "../modules/auth/auth.routes";
+import { errorMiddleware } from "../shared/middleware/error.middleware";
 const app = express();
 
 app.disable("x-powered-by");
@@ -35,7 +36,8 @@ app.use(
 );
 
 app.use(morgan("dev"));
-
+app.use("/api/v1/auth", authRoutes);
+app.use(errorMiddleware);
 app.get("/health", (_, res) => {
   res.status(200).json({
     success: true,

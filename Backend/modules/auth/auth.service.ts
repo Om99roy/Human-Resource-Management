@@ -5,17 +5,16 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../../shared/utils/jwt";
-
-const prisma = new PrismaClient();
-
+import { prisma } from "../../shared/prisma/prisma";
+import jwt  from "jsonwebtoken";
 const generateEmployeeId = async () => {
-  const count = await prisma.user.count();
+  const count = await prisma.employee.count();
 
   return `EMP${String(count + 1).padStart(4, "0")}`;
 };
 
 export const register = async (data: RegisterInput) => {
-  const existingUser = await prisma.user.findFirst({
+  const existingUser = await prisma.employee.findFirst({
     where: {
       OR: [
         {
@@ -33,7 +32,7 @@ export const register = async (data: RegisterInput) => {
 
   const employeeId = await generateEmployeeId();
 
-  const user = await prisma.user.create({
+  const user = await prisma.employee.create({
     data: {
       employeeId,
       firstName: data.firstName,
@@ -61,7 +60,7 @@ export const register = async (data: RegisterInput) => {
   await prisma.refreshToken.create({
     data: {
       token: refreshToken,
-      userId: user.id,
+      employeeId: user.id,
       expiresAt: new Date(
         Date.now() + 7 * 24 * 60 * 60 * 1000
       ),
@@ -76,7 +75,7 @@ export const register = async (data: RegisterInput) => {
 };
 
 export const login = async (data: LoginInput) => {
-  const user = await prisma.user.findUnique({
+  const user = await prisma.employee.findUnique({
     where: {
       email: data.email,
     },
@@ -98,7 +97,9 @@ export const login = async (data: LoginInput) => {
   if (!user.isActive) {
     throw new Error("Account has been disabled");
   }
-
+  if (!user.isVerified) {
+  throw new Error("Please verify your email");
+  }
   const payload = {
     id: user.id,
     email: user.email,
@@ -124,4 +125,61 @@ export const login = async (data: LoginInput) => {
     accessToken,
     refreshToken,
   };
+};
+
+export const rotateRefreshToken = async (oldToken: string) => {
+  try {
+    const payload = jwt.verify(oldToken, process.env.JWT_REFRESH_SECRET!) as any;
+
+    const storedToken = await prisma.refreshToken.findFirst({
+      where: { token: oldToken },
+    });
+
+    if (!storedToken) {
+      throw new Error("Refresh token not found");
+    }
+    if (storedToken.expiresAt < new Date()) {
+  	throw new Error("Refresh token expired");
+     }
+    await prisma.refreshToken.delete({
+      where: { id: storedToken.id },
+    });
+
+    const newPayload = {
+      id: payload.id,
+      email: payload.email,
+      role: payload.role,
+    };
+
+    const newAccessToken = generateAccessToken(newPayload);
+
+    const newRefreshToken = generateRefreshToken(newPayload);
+    await prisma.refreshToken.create({
+      data: {
+        token: newRefreshToken,
+        employeeId: payload.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return { newAccessToken, newRefreshToken };
+  } catch (err) {
+    throw new Error("Invalid refresh token");
+  }
+};
+
+export const logout = async (refreshToken: string) => {
+  const token = await prisma.refreshToken.findFirst({
+    where: { token: refreshToken },
+  });
+
+  if (!token) {
+    throw new Error("Token not found");
+  }
+
+  await prisma.refreshToken.delete({
+    where: { id: token.id },
+  });
+
+  return true;
 };
