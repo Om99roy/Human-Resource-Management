@@ -1,5 +1,2 @@
-.env
 node_modules
-services/auth/node_modules
-
-/generated/prisma
+.env

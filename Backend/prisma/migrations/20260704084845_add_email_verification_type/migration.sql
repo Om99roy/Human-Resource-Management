@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE `RefreshToken` MODIFY `token` VARCHAR(191) NOT NULL;
