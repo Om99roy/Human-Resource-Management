@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
+}
+
+enum LeaveType {
+  CASUAL
+  SICK
+  PAID
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Employee {
+  id String @id @default(uuid())
+
+  employeeId String @unique
+
+  firstName String
+  lastName  String
+
+  email    String @unique
+  password String
+
+  phone   String?
+  address String? @db.Text
+
+  department  String?
+  designation String?
+
+  role Role @default(EMPLOYEE)
+
+  profilePicture String?
+
+  isVerified Boolean @default(false)
+  isActive   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attendances   Attendance[]
+  leaveRequests LeaveRequest[]
+  payrolls      Payroll[]
+  notifications Notification[]
+  refreshTokens RefreshToken[]
+
+  approvedLeaves LeaveRequest[] @relation("Approver")
+}
+
+model Attendance {
+  id Int @id @default(autoincrement())
+
+  attendanceDate DateTime @db.Date
+
+  checkIn  DateTime?
+  checkOut DateTime?
+
+  status AttendanceStatus @default(ABSENT)
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, attendanceDate])
+  @@index([attendanceDate])
+}
+
+model LeaveRequest {
+  id Int @id @default(autoincrement())
+
+  leaveType LeaveType
+
+  startDate DateTime
+  endDate   DateTime
+
+  remarks String? @db.Text
+
+  status LeaveStatus @default(PENDING)
+
+  adminComment String? @db.Text
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  approvedById String?
+  approvedBy   Employee? @relation("Approver", fields: [approvedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model Payroll {
+  id Int @id @default(autoincrement())
+
+  month Int
+  year  Int
+
+  basicSalary Decimal @db.Decimal(10, 2)
+  bonus       Decimal @default(0) @db.Decimal(10, 2)
+  deductions  Decimal @default(0) @db.Decimal(10, 2)
+  netSalary   Decimal @db.Decimal(10, 2)
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, month, year])
+  @@index([year, month])
+}
+
+model Notification {
+  id Int @id @default(autoincrement())
+
+  title   String
+  message String @db.Text
+
+  isRead Boolean @default(false)
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RefreshToken {
+  id Int @id @default(autoincrement())
+
+  token String @db.Text
+
+  expiresAt DateTime
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
