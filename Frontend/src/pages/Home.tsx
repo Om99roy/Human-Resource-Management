@@ -3,6 +3,7 @@ import FullScreenNav from "../components/FullScreenNav";
 
 import { Canvas } from "@react-three/fiber";
 import { Center, OrbitControls } from "@react-three/drei";
+import { Link } from "react-router-dom";
 
 import OrbModel from "../models/OrbModel";
 
@@ -47,9 +48,9 @@ const Home = () => {
                 Get Started
               </button>
 
-              <button className="rounded-full border border-primary px-9 py-4 font-semibold text-primary transition-all duration-300 hover:bg-primary hover:text-white cursor-pointer">
-                Explore
-              </button>
+              <Link to="/admin" className="rounded-full border border-primary px-9 py-4 font-semibold text-primary transition-all duration-300 hover:bg-primary hover:text-white cursor-pointer">
+                Open Admin Dashboard
+              </Link>
 
             </div>
 

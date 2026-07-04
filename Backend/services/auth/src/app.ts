@@ -5,6 +5,7 @@ import compression from "compression";
 import cookieParser from "cookie-parser";
 
 import healthRouter from "./routes/health.routes";
+import adminRoutes from "../../../Admin/adminRoutes";
 
 const app = express();
 
@@ -16,5 +17,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/health", healthRouter);
+app.use("/api/admin", adminRoutes);
 
 export default app;

@@ -1,6 +1,6 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import React, { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useRef } from "react";
 import { NavbarContext } from "../context/NavContext";
 import logo from "../assets/orBIS.png";
 const FullScreenNav = () => {
