@@ -1,12 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 import { RegisterInput, LoginInput } from "./auth.validation";
 import { hashPassword, comparePassword } from "../../shared/utils/hash";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-} from "../../shared/utils/jwt";
+import { generateAccessToken, generateRefreshToken } from "../../shared/utils/jwt";
 import { prisma } from "../../shared/prisma/prisma";
 import jwt  from "jsonwebtoken";
+import crypto from "crypto";
+import nodemailer from "nodemailer";
+import type { AppJwtPayload } from "../../shared/types/jwt.types";
+
 const generateEmployeeId = async () => {
   const count = await prisma.employee.count();
 
@@ -38,7 +39,7 @@ export const register = async (data: RegisterInput) => {
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
-      password: hashedPassword,
+      passwordHash: hashedPassword,
       phone: data.phone,
       address: data.address,
       department: data.department,
@@ -47,7 +48,7 @@ export const register = async (data: RegisterInput) => {
     },
   });
 
-  const payload = {
+  const payload: AppJwtPayload = {
     id: user.id,
     email: user.email,
     role: user.role,
@@ -66,7 +67,7 @@ export const register = async (data: RegisterInput) => {
       ),
     },
   });
-
+  await sendVerificationEmail(user.id, user.email);
   return {
     user,
     accessToken,
@@ -87,7 +88,7 @@ export const login = async (data: LoginInput) => {
 
   const isPasswordCorrect = await comparePassword(
     data.password,
-    user.password
+    user.passwordHash
   );
 
   if (!isPasswordCorrect) {
@@ -100,7 +101,7 @@ export const login = async (data: LoginInput) => {
   if (!user.isVerified) {
   throw new Error("Please verify your email");
   }
-  const payload = {
+  const payload: AppJwtPayload = {
     id: user.id,
     email: user.email,
     role: user.role,
@@ -129,7 +130,7 @@ export const login = async (data: LoginInput) => {
 
 export const rotateRefreshToken = async (oldToken: string) => {
   try {
-    const payload = jwt.verify(oldToken, process.env.JWT_REFRESH_SECRET!) as any;
+    const payload = jwt.verify(oldToken, process.env.JWT_REFRESH_SECRET!) as AppJwtPayload;
 
     const storedToken = await prisma.refreshToken.findFirst({
       where: { token: oldToken },
@@ -164,6 +165,7 @@ export const rotateRefreshToken = async (oldToken: string) => {
 
     return { newAccessToken, newRefreshToken };
   } catch (err) {
+    console.error(err);
     throw new Error("Invalid refresh token");
   }
 };
@@ -179,6 +181,92 @@ export const logout = async (refreshToken: string) => {
 
   await prisma.refreshToken.delete({
     where: { id: token.id },
+  });
+
+  return true;
+};
+
+export const sendVerificationEmail = async (employeeId: string, email: string) => {
+  const token = crypto.randomUUID();
+
+  await prisma.emailVerification.create({
+    data: {
+      employeeId,
+      token,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60), 
+    },
+  });
+
+  console.log(`Verify Email: ${process.env.CLIENT_URL}/verify/${token}`);
+
+  return true;
+};
+
+export const verifyEmail = async (token: string) => {
+  const record = await prisma.emailVerification.findFirst({
+    where: { token },
+  });
+
+  if (!record) throw new Error("Invalid token");
+
+  if (record.expiresAt < new Date()) {
+    throw new Error("Token expired");
+  }
+
+  await prisma.employee.update({
+    where: { id: record.employeeId },
+    data: { isVerified: true },
+  });
+
+  await prisma.emailVerification.delete({
+    where: { id: record.id },
+  });
+
+  return true;
+};
+
+export const requestPasswordReset = async (email: string) => {
+  const user = await prisma.employee.findUnique({
+    where: { email },
+  });
+
+  if (!user) return true; 
+
+  const token = crypto.randomUUID();
+
+  await prisma.emailVerification.create({
+    data: {
+      employeeId: user.id,
+      token,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 30), 
+    },
+  });
+
+  console.log(`Reset Password: ${process.env.CLIENT_URL}/reset/${token}`);
+
+  return true;
+};
+
+export const resetPassword = async (token: string, newPassword: string) => {
+  const record = await prisma.emailVerification.findFirst({
+    where: { token },
+  });
+
+  if (!record) throw new Error("Invalid token");
+
+  if (record.expiresAt < new Date()) {
+    throw new Error("Token expired");
+  }
+
+  const hashed = await hashPassword(newPassword);
+
+  await prisma.employee.update({
+    where: { id: record.employeeId },
+    data: { passwordHash: hashed },
+  });
+
+  await prisma.emailVerification.delete({
+    where: { id: record.id },
   });
 
   return true;

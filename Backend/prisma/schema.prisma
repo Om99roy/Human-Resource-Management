@@ -41,7 +41,7 @@ model Employee {
   firstName String
   lastName  String
 
-  email    String @unique
+  email        String @unique
   passwordHash String
 
   phone   String?
@@ -49,9 +49,9 @@ model Employee {
 
   department  String?
   designation String?
-  
-  deletedAt DateTime? 
-  role Role @default(EMPLOYEE)
+
+  deletedAt DateTime?
+  role      Role      @default(EMPLOYEE)
 
   profilePicture String?
 
@@ -68,6 +68,8 @@ model Employee {
   refreshTokens RefreshToken[]
 
   approvedLeaves LeaveRequest[] @relation("Approver")
+
+  emailVerifications EmailVerification[]
 }
 
 model Attendance {
@@ -157,7 +159,7 @@ model Notification {
 model RefreshToken {
   id Int @id @default(autoincrement())
 
-  token String @db.Text
+  token     String   @db.Text
   expiresAt DateTime
 
   employeeId String
@@ -168,15 +170,15 @@ model RefreshToken {
 
   @@index([employeeId])
 }
- 
+
 model EmailVerification {
-  id         String   @id @default(uuid())
+  id String @id @default(uuid())
 
   employeeId String
   token      String   @unique
   expiresAt  DateTime
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
