@@ -1,0 +1,36 @@
+@import "tailwindcss";
+body{
+	background-color: #111;
+	font-family: var(--font-sans);
+}
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/inter/800.css";
+
+@theme {
+  /* ========= Brand ========= */
+  --color-primary: #e91e63;      /* Pink */
+  --color-secondary: #f44336;    /* Orange-Red */
+  --color-tertiary: #5b21b6;     /* Dark Purple */
+
+  /* ========= Backgrounds ========= */
+  --color-background: #09090b;   /* App background */
+  --color-surface: #18181b;      /* Cards, Navbar */
+  --color-surface-2: #27272a;    /* Hovered cards, Dropdowns */
+
+  /* ========= Text ========= */
+  --color-text: #fafafa;
+  --color-text-muted: #a1a1aa;
+
+  /* ========= Borders ========= */
+  --color-border: #3f3f46;
+
+  /* ========= Status ========= */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+
+  --font-sans: "Inter", sans-serif;
+}
