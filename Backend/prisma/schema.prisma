@@ -33,6 +33,11 @@ enum LeaveStatus {
   REJECTED
 }
 
+enum VerificationType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
 model Employee {
   id String @id @default(uuid())
 
@@ -159,7 +164,7 @@ model Notification {
 model RefreshToken {
   id Int @id @default(autoincrement())
 
-  token     String   @db.Text
+  token     String
   expiresAt DateTime
 
   employeeId String
@@ -175,10 +180,14 @@ model EmailVerification {
   id String @id @default(uuid())
 
   employeeId String
-  token      String   @unique
+  token      String           @unique
+  type       VerificationType
   expiresAt  DateTime
 
   createdAt DateTime @default(now())
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([employeeId])
 }
