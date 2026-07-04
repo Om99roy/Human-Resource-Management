@@ -3,7 +3,7 @@ from langchain_ollama import ChatOllama
 llm = ChatOllama(
     model="phi3:mini",
     temperature=0,
-    num_predict=80
+    num_predict=30
 )
 
 
