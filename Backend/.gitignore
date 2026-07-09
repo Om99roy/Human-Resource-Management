@@ -1,3 +1,2 @@
-.env
 node_modules
-services/auth/node_modules
+.env

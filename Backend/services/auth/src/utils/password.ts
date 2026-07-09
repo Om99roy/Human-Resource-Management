@@ -1,2 +1,0 @@
-//hashPassword()
-//comparePassword()
