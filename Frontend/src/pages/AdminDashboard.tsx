@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import HRCopilotPanel from "../components/HRCopilotPanel";
+
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 
 type EmployeeStatus = "Present" | "Absent" | "Late" | "On Leave";
 type AttendanceStatus = "Present" | "Absent" | "Late" | "Half Day";
@@ -140,26 +143,63 @@ const AdminDashboard = () => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(defaultDashboardData.employees[0]?.id ?? null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Stable thread ID for the copilot panel session
+  const copilotThreadId = useRef(`admin-${Date.now()}`).current;
+
+  // Get admin token from sessionStorage (set by AdminLoginModal)
+  const token = sessionStorage.getItem("adminToken");
+  const authHeaders = useMemo(
+    () => ({
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    }),
+    [token]
+  );
+
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const response = await fetch("/api/admin/dashboard");
-        if (!response.ok) {
-          throw new Error("Unable to load dashboard data");
-        }
-        const payload = (await response.json()) as DashboardData;
-        setDashboardData(payload);
-        setSelectedEmployeeId(payload.employees[0]?.id ?? null);
+        const res = await fetch(`${API}/api/v1/admin/dashboard`, {
+          headers: authHeaders,
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("API unavailable");
+        const payload = (await res.json()) as { data: { totalEmployees: number; presentToday: number; absentToday: number; pendingLeaves: number; monthlyPayroll: number } };
+        // Merge live stats with default employee/attendance/leave lists
+        setDashboardData((prev) => ({ ...prev, ...payload.data }));
       } catch {
-        setDashboardData(defaultDashboardData);
-        setSelectedEmployeeId(defaultDashboardData.employees[0]?.id ?? null);
+        // Fall back gracefully to default mock data — dashboard still renders
       } finally {
         setIsLoading(false);
       }
     };
 
     void fetchDashboard();
-  }, []);
+  }, [authHeaders]);
+
+  const handleLeaveAction = async (leaveId: number, action: "APPROVED" | "REJECTED") => {
+    try {
+      const res = await fetch(`${API}/api/v1/leave/${leaveId}`, {
+        method: "PATCH",
+        headers: authHeaders,
+        credentials: "include",
+        body: JSON.stringify({ status: action }),
+      });
+      if (res.ok) {
+        setDashboardData((prev) => ({
+          ...prev,
+          leaveApprovals: prev.leaveApprovals.map((l) =>
+            l.id === leaveId
+              ? { ...l, status: action === "APPROVED" ? "Approved" : "Rejected" }
+              : l
+          ),
+          pendingLeaves: Math.max(0, prev.pendingLeaves - 1),
+        }));
+      }
+    } catch {
+      // Silent — leave stays pending
+    }
+  };
 
   const activeEmployee = useMemo(() => {
     return dashboardData.employees.find((employee) => employee.id === selectedEmployeeId) ?? dashboardData.employees[0];
@@ -192,6 +232,7 @@ const AdminDashboard = () => {
           </div>
         </header>
 
+        {/* Stats cards */}
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {[
             { label: "Total employees", value: dashboardData.totalEmployees, hint: "+3 new this month" },
@@ -208,6 +249,7 @@ const AdminDashboard = () => {
           ))}
         </section>
 
+        {/* Employee list + Attendance records */}
         <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="rounded-3xl border border-white/10 bg-surface/80 p-5 shadow-2xl shadow-black/20">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -303,12 +345,20 @@ const AdminDashboard = () => {
           </div>
         </section>
 
+        {/* Leave approvals + HR Copilot */}
         <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-3xl border border-white/10 bg-surface/80 p-5 shadow-2xl shadow-black/20">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold">Leave approvals</h2>
-                <p className="text-sm text-text-muted">Approve or reject requests from the HR desk.</p>
+                <p className="text-sm text-text-muted">
+                  Approve or reject requests from the HR desk.
+                  {dashboardData.pendingLeaves > 0 && (
+                    <span className="ml-2 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 text-xs">
+                      {dashboardData.pendingLeaves} pending
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
             <div className="mt-5 space-y-3">
@@ -324,41 +374,33 @@ const AdminDashboard = () => {
                       {leave.status}
                     </span>
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button className="rounded-full bg-emerald-500/90 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-400">
-                      Approve
-                    </button>
-                    <button className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-text-muted transition hover:border-primary hover:text-primary">
-                      Reject
-                    </button>
-                  </div>
+                  {leave.status === "Pending" && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => void handleLeaveAction(leave.id, "APPROVED")}
+                        className="rounded-full bg-emerald-500/90 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-400"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => void handleLeaveAction(leave.id, "REJECTED")}
+                        className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-text-muted transition hover:border-rose-500 hover:text-rose-400"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
 
+          {/* HR Copilot Panel — real AI integration */}
           <div className="rounded-3xl border border-white/10 bg-surface/80 p-5 shadow-2xl shadow-black/20">
-            <div>
-              <p className="text-sm uppercase tracking-[0.35em] text-primary">HR Copilot</p>
-              <h2 className="mt-2 text-xl font-semibold">AI-driven insights for the admin team</h2>
-            </div>
-            <div className="mt-5 space-y-3">
-              {dashboardData.insights.map((insight) => (
-                <div key={insight} className="rounded-2xl border border-white/10 bg-background/70 p-3 text-sm text-text-muted">
-                  {insight}
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 rounded-2xl border border-primary/30 bg-primary/10 p-4">
-              <p className="text-sm font-medium text-primary">Ask HR Copilot</p>
-              <textarea
-                className="mt-3 h-24 w-full rounded-xl border border-white/10 bg-background/70 p-3 text-sm text-text outline-none"
-                placeholder="Summarize attendance risks for this week..."
-              />
-              <button className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-secondary">
-                Generate insight
-              </button>
-            </div>
+            <HRCopilotPanel
+              threadId={copilotThreadId}
+              initialInsights={dashboardData.insights}
+            />
           </div>
         </section>
       </div>

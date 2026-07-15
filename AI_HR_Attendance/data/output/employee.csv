@@ -1,0 +1,4 @@
+employee_id,first_name,last_name,gender,email,phone,department,designation,manager,joining_date,employment_type,basic_salary,status
+EMP9999,Test,User,Unknown,test.user@example.com,1234567890,Engineering,Developer,,2026-07-15,Full-Time,0,Active
+EMP9998,HR,User,Unknown,hr.user@example.com,1234567890,HR,Manager,,2026-07-15,Full-Time,0,Active
+EMP0001,Omdeep,Chowdhury,Unknown,omdeeproychowdhury@gmail.com,,Software,.NET Developer,,2026-07-15,Full-Time,0,Active

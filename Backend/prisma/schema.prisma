@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -50,7 +50,7 @@ model Employee {
   passwordHash String
 
   phone   String?
-  address String? @db.Text
+  address String?
 
   department  String?
   designation String?
@@ -80,7 +80,7 @@ model Employee {
 model Attendance {
   id Int @id @default(autoincrement())
 
-  attendanceDate DateTime @db.Date
+  attendanceDate DateTime
 
   checkIn  DateTime?
   checkOut DateTime?
@@ -105,11 +105,11 @@ model LeaveRequest {
   startDate DateTime
   endDate   DateTime
 
-  remarks String? @db.Text
+  remarks String?
 
   status LeaveStatus @default(PENDING)
 
-  adminComment String? @db.Text
+  adminComment String?
 
   employeeId String
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -129,10 +129,10 @@ model Payroll {
   month Int
   year  Int
 
-  basicSalary Decimal @db.Decimal(10, 2)
-  bonus       Decimal @default(0) @db.Decimal(10, 2)
-  deductions  Decimal @default(0) @db.Decimal(10, 2)
-  netSalary   Decimal @db.Decimal(10, 2)
+  basicSalary Decimal
+  bonus       Decimal @default(0)
+  deductions  Decimal @default(0)
+  netSalary   Decimal
 
   employeeId String
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -148,7 +148,7 @@ model Notification {
   id Int @id @default(autoincrement())
 
   title   String
-  message String @db.Text
+  message String
 
   isRead Boolean @default(false)
 

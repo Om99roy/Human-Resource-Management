@@ -1,61 +1,47 @@
 import type { Request, Response } from "express";
 import * as employeeService from "./employee.service";
-import type { CreateEmployeeInput, UpdateProfileInput, UpdateEmployeeInput } from "./employee.validation";
 
-export const getProfile = async (req: Request, res: Response) => {
-  const employee = await employeeService.getProfile(req.user.id);
-
-  res.status(200).json(employee);
+// GET /api/v1/employees — ADMIN/HR only
+export const getAllEmployees = async (req: Request, res: Response) => {
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 50;
+  const result = await employeeService.getAllEmployees(page, limit);
+  res.status(200).json({ success: true, data: result });
 };
 
-export const updateProfile = async (req: Request, res: Response) => {
-  const employee = await employeeService.updateProfile(
-    req.user.id,
-    req.body
-  );
-
-  res.status(200).json(employee);
-};
-export const createEmployee = async (
-  req: Request<{}, {}, CreateEmployeeInput>,
-  res: Response
-) => {
+// POST /api/v1/employees — ADMIN only
+export const createEmployee = async (req: Request, res: Response) => {
   const employee = await employeeService.createEmployee(req.body);
-
-  res.status(201).json(employee);
+  res.status(201).json({ success: true, data: employee });
 };
 
-export const updateEmployee = async (
-  req: Request<{ id: string }, {}, UpdateEmployeeInput>,
-  res: Response
-) => {
-  const employee = await employeeService.updateEmployee(
-    req.params.id,
-    req.body
-  );
-
-  res.status(200).json(employee);
+// GET /api/v1/employees/profile — authenticated
+export const getProfile = async (req: Request, res: Response) => {
+  const employee = await employeeService.getProfile((req as any).user.id);
+  if (!employee) return res.status(404).json({ success: false, error: "Employee not found" });
+  res.status(200).json({ success: true, data: employee });
 };
 
-
-export const getEmployeeById = async (req: Request<{id: string}>, res: Response) => {
-  const employee = await employeeService.getEmployeeById(req.params.id);
-
-  res.status(200).json(employee);
+// PATCH /api/v1/employees/profile — authenticated (restricted fields)
+export const updateProfile = async (req: Request, res: Response) => {
+  const employee = await employeeService.updateProfile((req as any).user.id, req.body);
+  res.status(200).json({ success: true, data: employee });
 };
 
-export const getAllEmployees = async (_req: Request, res: Response) => {
-  const employees = await employeeService.getAllEmployees();
-
-  res.status(200).json(employees);
+// GET /api/v1/employees/:id — ADMIN/HR only
+export const getEmployeeById = async (req: Request, res: Response) => {
+  const employee = await employeeService.getEmployeeById(String(req.params.id));
+  res.status(200).json({ success: true, data: employee });
 };
 
-export const deleteEmployee = async (req: Request<{id: string}>, res: Response) => {
-  await employeeService.deleteEmployee(req.params.id);
-
-  res.status(200).json({
-    message: "Employee deleted successfully",
-  });
+// PATCH /api/v1/employees/:id — ADMIN only
+export const updateEmployee = async (req: Request, res: Response) => {
+  const employee = await employeeService.updateEmployee(String(req.params.id), req.body);
+  res.status(200).json({ success: true, data: employee });
 };
 
-
+// DELETE /api/v1/employees/:id — ADMIN only (soft-delete)
+export const deleteEmployee = async (req: Request, res: Response) => {
+  await employeeService.deleteEmployee(String(req.params.id));
+  res.status(200).json({ success: true, message: "Employee deleted successfully" });
+};

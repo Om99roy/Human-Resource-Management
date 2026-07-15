@@ -1,21 +1,29 @@
 import { prisma } from "../../shared/prisma/prisma";
 import { AttendanceStatus } from "@prisma/client";
 
-export const checkIn = async (employeeId: string) => {
-  const today = new Date();
-  today.setHours(0,0,0,0);
+/** Returns today's date at midnight (UTC-safe for DATE columns) */
+const todayDate = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
 
-  const attendance = await prisma.attendance.findUnique({
-    where: {
-      employeeId_attendanceDate: {
-        employeeId,
-        attendanceDate: today,
-      },
-    },
+// ── Check-in ──────────────────────────────────────────────────────────────────
+export const checkIn = async (employeeId: string) => {
+  const today = todayDate();
+
+  // Reject future dates (guard — today is never in the future, but kept for safety)
+  if (today > new Date()) {
+    throw Object.assign(new Error("attendanceDate cannot be in the future"), { status: 400 });
+  }
+
+  const existing = await prisma.attendance.findUnique({
+    where: { employeeId_attendanceDate: { employeeId, attendanceDate: today } },
   });
 
-  if (attendance)
-    throw new Error("Already checked in today");
+  if (existing) {
+    throw Object.assign(new Error("Attendance already recorded for this date"), { status: 409 });
+  }
 
   return prisma.attendance.create({
     data: {
@@ -27,44 +35,76 @@ export const checkIn = async (employeeId: string) => {
   });
 };
 
+// ── Check-out ─────────────────────────────────────────────────────────────────
 export const checkOut = async (employeeId: string) => {
-  const today = new Date();
-  today.setHours(0,0,0,0);
+  const today = todayDate();
 
-  const attendance = await prisma.attendance.findUnique({
-    where: {
-      employeeId_attendanceDate: {
-        employeeId,
-        attendanceDate: today,
-      },
-    },
+  const record = await prisma.attendance.findUnique({
+    where: { employeeId_attendanceDate: { employeeId, attendanceDate: today } },
   });
 
-  if (!attendance)
-    throw new Error("Check in first");
+  if (!record) {
+    throw Object.assign(new Error("No check-in found for today"), { status: 404 });
+  }
+
+  const now = new Date();
+
+  // Enforce checkOut >= checkIn
+  if (record.checkIn && now < record.checkIn) {
+    throw Object.assign(new Error("checkOut must be >= checkIn"), { status: 400 });
+  }
 
   return prisma.attendance.update({
-    where: { id: attendance.id },
-    data: {
-      checkOut: new Date(),
-    },
+    where: { id: record.id },
+    data: { checkOut: now },
   });
 };
 
-export const myAttendance = (employeeId: string) =>
+// ── Own attendance records ────────────────────────────────────────────────────
+export const myAttendance = async (employeeId: string) =>
   prisma.attendance.findMany({
     where: { employeeId },
     orderBy: { attendanceDate: "desc" },
   });
 
-export const allAttendance = () =>
-  prisma.attendance.findMany({
-    include: { employee: true },
+// ── All records (ADMIN/HR) with optional filters ──────────────────────────────
+export const allAttendance = async (filters: {
+  employeeId?: string;
+  from?: string;
+  to?: string;
+}) => {
+  const where: Record<string, unknown> = {};
+  if (filters.employeeId) where.employeeId = filters.employeeId;
+  if (filters.from || filters.to) {
+    where.attendanceDate = {
+      ...(filters.from && { gte: new Date(filters.from) }),
+      ...(filters.to && { lte: new Date(filters.to) }),
+    };
+  }
+  return prisma.attendance.findMany({
+    where,
+    include: { employee: { select: { firstName: true, lastName: true, department: true } } },
+    orderBy: { attendanceDate: "desc" },
   });
+};
 
-export const employeeAttendance = (employeeId: string) =>
+// ── Attendance for a specific employee (ADMIN/HR) ────────────────────────────
+export const employeeAttendance = async (employeeId: string) =>
   prisma.attendance.findMany({
     where: { employeeId },
+    orderBy: { attendanceDate: "desc" },
   });
 
+// ── Admin override status ────────────────────────────────────────────────────
+export const updateAttendanceStatus = async (
+  id: number,
+  status: AttendanceStatus
+) => {
+  const record = await prisma.attendance.findUnique({ where: { id } });
+  if (!record) throw Object.assign(new Error("Attendance record not found"), { status: 404 });
 
+  return prisma.attendance.update({
+    where: { id },
+    data: { status },
+  });
+};

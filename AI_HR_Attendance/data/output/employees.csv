@@ -99,3 +99,6 @@ EMP097,Meghana,Deep,Male,user97@company.com,9352904228,HR,Recruiter,Asha Patel,2
 EMP098,Charita,Shankar,Male,user98@company.com,9205395024,Engineering,Software Engineer,Rohan Gupta,2024-11-11,Full-Time,46000,Active
 EMP099,Elijah,Andra,Female,user99@company.com,9811775891,Support,System Administrator,Akash Yadav,2025-06-19,Full-Time,94000,Active
 EMP100,Harish,Borah,Male,user100@company.com,9847007661,HR,Recruiter,Asha Patel,2025-10-21,Full-Time,86000,Active
+EMP9999,Test,User,Unknown,test.user@example.com,1234567890,Engineering,Developer,,2026-07-15,Full-Time,0,Active
+EMP9998,HR,User,Unknown,hr.user@example.com,1234567890,HR,Manager,,2026-07-15,Full-Time,0,Active
+EMP0001,Omdeep,Chowdhury,Unknown,omdeeproychowdhury@gmail.com,,Software,.NET Developer,,2026-07-15,Full-Time,0,Active

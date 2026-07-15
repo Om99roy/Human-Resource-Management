@@ -1,17 +1,27 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import FullScreenNav from "../components/FullScreenNav";
+import AdminLoginModal from "../components/AdminLoginModal";
 
 import { Canvas } from "@react-three/fiber";
 import { Center, OrbitControls } from "@react-three/drei";
-import { Link } from "react-router-dom";
 
 import OrbModel from "../models/OrbModel";
 
 const Home = () => {
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+
   return (
     <>
       <Navbar />
       <FullScreenNav />
+
+      {/* Admin-only login gate modal */}
+      <AdminLoginModal
+        isOpen={isAdminModalOpen}
+        onClose={() => setIsAdminModalOpen(false)}
+      />
 
       <main className="relative min-h-screen overflow-hidden bg-background text-text">
 
@@ -44,13 +54,16 @@ const Home = () => {
 
             <div className="mt-10 flex justify-center gap-5">
 
-              <button className="rounded-full bg-primary px-9 py-4 font-semibold text-white transition-all duration-300 hover:scale-105 hover:bg-secondary cursor-pointer">
+              <Link to="/auth/signup" className="rounded-full bg-primary px-9 py-4 font-semibold text-white transition-all duration-300 hover:scale-105 hover:bg-secondary cursor-pointer">
                 Get Started
-              </button>
-
-              <Link to="/admin" className="rounded-full border border-primary px-9 py-4 font-semibold text-primary transition-all duration-300 hover:bg-primary hover:text-white cursor-pointer">
-                Open Admin Dashboard
               </Link>
+
+              <button
+                onClick={() => setIsAdminModalOpen(true)}
+                className="rounded-full border border-primary px-9 py-4 font-semibold text-primary transition-all duration-300 hover:bg-primary hover:text-white cursor-pointer"
+              >
+                Open Admin Dashboard
+              </button>
 
             </div>
 
